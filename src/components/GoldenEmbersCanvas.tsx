@@ -26,6 +26,7 @@ export function GoldenEmbersCanvas({ mousePos }: GoldenEmbersCanvasProps) {
 
     let animId: number;
     const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
     let w = canvas.parentElement?.clientWidth || (typeof window !== "undefined" ? window.innerWidth : 1200);
     let h = canvas.parentElement?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
@@ -41,36 +42,48 @@ export function GoldenEmbersCanvas({ mousePos }: GoldenEmbersCanvasProps) {
     onResize();
     window.addEventListener("resize", onResize);
 
-    // Warm Bokeh Light Orbs
-    const bokehOrbs = Array.from({ length: 14 }, () => ({
+    // 1. Warm Bokeh Light Orbs (Background layer)
+    const bokehOrbs = Array.from({ length: isMobile ? 8 : 16 }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
       radius: Math.random() * 45 + 25,
       speedX: (Math.random() - 0.5) * 0.2,
-      speedY: -Math.random() * 0.25 - 0.1,
+      speedY: -Math.random() * 0.25 - 0.08,
       alpha: Math.random() * 0.18 + 0.08,
       pulse: Math.random() * Math.PI * 2,
       pulseSpeed: Math.random() * 0.015 + 0.008,
     }));
 
-    // Tandoor Fire Embers
-    const embers = Array.from({ length: 65 }, () => ({
+    // 2. Floating Golden Wheat Particles (Midground layer)
+    const wheatSpecks = Array.from({ length: isMobile ? 12 : 28 }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
-      radius: Math.random() * 2.6 + 0.8,
+      length: Math.random() * 6 + 4,
+      width: Math.random() * 2 + 1,
+      angle: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.02,
+      speedY: -Math.random() * 0.45 - 0.15,
+      speedX: (Math.random() - 0.5) * 0.25,
+      alpha: Math.random() * 0.5 + 0.2,
+    }));
+
+    // 3. Tandoor Fire Embers (Foreground layer)
+    const embers = Array.from({ length: isMobile ? 35 : 75 }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      radius: Math.random() * 2.4 + 0.8,
       speedY: Math.random() * 0.75 + 0.35,
       speedX: (Math.random() - 0.5) * 0.35,
       wobbleSpeed: Math.random() * 0.035 + 0.015,
       wobbleRadius: Math.random() * 1.5 + 0.5,
       angle: Math.random() * Math.PI * 2,
       alpha: Math.random() * 0.75 + 0.25,
-      baseAlpha: Math.random() * 0.75 + 0.25,
       color:
         Math.random() > 0.65
-          ? "#FFE082"
+          ? "#FAE8B4"
           : Math.random() > 0.35
-            ? "#FFD54F"
-            : "#B79A5B",
+            ? "#CBBD93"
+            : "#80775C",
     }));
 
     const render = () => {
@@ -92,9 +105,9 @@ export function GoldenEmbersCanvas({ mousePos }: GoldenEmbersCanvasProps) {
 
         const alpha = Math.max(0.04, b.alpha + Math.sin(b.pulse) * 0.06);
         const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius);
-        grad.addColorStop(0, `rgba(212, 175, 55, ${alpha * 1.3})`);
-        grad.addColorStop(0.5, `rgba(183, 154, 91, ${alpha * 0.7})`);
-        grad.addColorStop(1, "rgba(32, 37, 28, 0)");
+        grad.addColorStop(0, `rgba(250, 232, 180, ${alpha * 1.2})`);
+        grad.addColorStop(0.5, `rgba(203, 189, 147, ${alpha * 0.6})`);
+        grad.addColorStop(1, "rgba(42, 36, 24, 0)");
 
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -102,44 +115,64 @@ export function GoldenEmbersCanvas({ mousePos }: GoldenEmbersCanvasProps) {
         ctx.fill();
       }
 
-      // Render Embers with Mouse Physics
-      const m = mouseRef.current;
-      for (let i = 0; i < embers.length; i++) {
-        const p = embers[i];
-        p.angle += p.wobbleSpeed;
-        p.alpha = p.baseAlpha + Math.sin(p.angle) * 0.3;
-        p.y -= p.speedY;
-        p.x += Math.sin(p.angle) * p.wobbleRadius + p.speedX;
+      // Render Floating Wheat Specks
+      for (let i = 0; i < wheatSpecks.length; i++) {
+        const p = wheatSpecks[i];
+        p.angle += p.rotSpeed;
+        p.y += p.speedY;
+        p.x += p.speedX;
 
-        if (m.active) {
-          const dx = p.x - m.x;
-          const dy = p.y - m.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 130 && dist > 0) {
-            const force = (130 - dist) / 130;
-            p.x += (dx / dist) * force * 3;
-            p.y += (dy / dist) * force * 3;
-            p.alpha = Math.min(1, p.alpha + force * 0.4);
-          }
-        }
-
-        if (p.y < -20) {
+        if (p.y < -15) {
           p.y = h + 15;
           p.x = Math.random() * w;
         }
-        if (p.x < -20) p.x = w + 15;
-        if (p.x > w + 20) p.x = -15;
+        if (p.x < -15) p.x = w + 15;
+        if (p.x > w + 15) p.x = -15;
 
         ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = `rgba(203, 189, 147, ${p.alpha})`;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = Math.max(0.1, Math.min(1, p.alpha));
-        ctx.shadowBlur = 14;
-        ctx.shadowColor = "#FFD54F";
+        ctx.ellipse(0, 0, p.length, p.width, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
+
+      // Render Embers with Mouse Interaction
+      const m = mouseRef.current;
+      for (let i = 0; i < embers.length; i++) {
+        const e = embers[i];
+        e.angle += e.wobbleSpeed;
+        e.y -= e.speedY;
+        e.x += e.speedX + Math.sin(e.angle) * 0.4;
+
+        // Subtle mouse deflection
+        if (m.active) {
+          const dx = e.x - m.x;
+          const dy = e.y - m.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 160 && dist > 0) {
+            const force = (160 - dist) / 160;
+            e.x += (dx / dist) * force * 2.2;
+            e.y += (dy / dist) * force * 1.5;
+          }
+        }
+
+        if (e.y < -10) {
+          e.y = h + 10;
+          e.x = Math.random() * w;
+        }
+        if (e.x < -10) e.x = w + 10;
+        if (e.x > w + 10) e.x = -10;
+
+        ctx.fillStyle = e.color;
+        ctx.globalAlpha = e.alpha;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
 
       animId = requestAnimationFrame(render);
     };
@@ -152,13 +185,12 @@ export function GoldenEmbersCanvas({ mousePos }: GoldenEmbersCanvasProps) {
     };
   }, [mounted]);
 
-  if (!mounted) return null;
-
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 size-full pointer-events-none z-10 opacity-90"
-      style={{ width: "100%", height: "100%" }}
+      className="pointer-events-none absolute inset-0 size-full z-[8]"
+      style={{ opacity: 0.95 }}
+      aria-hidden="true"
     />
   );
 }
