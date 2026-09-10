@@ -15,7 +15,7 @@ export default defineConfig({
   vite: {
     server: {
       fs: {
-        allow: ["..", "C:/Users/hp/.gemini/antigravity-ide/brain"],
+        allow: [".."],
       },
     },
   },
